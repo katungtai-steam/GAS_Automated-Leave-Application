@@ -197,6 +197,33 @@ function getRosterHeaderIndexMap_(headerRow) {
   return map;
 }
 
+function getRosterMissingHeaders_(headerIndexMap) {
+  const missing = [];
+  if (headerIndexMap[ROSTER_HEADERS_.className] == null) missing.push(ROSTER_HEADERS_.className);
+  if (headerIndexMap[ROSTER_HEADERS_.studentId] == null) missing.push(ROSTER_HEADERS_.studentId);
+  if (headerIndexMap[ROSTER_HEADERS_.name] == null) missing.push(ROSTER_HEADERS_.name);
+  return missing;
+}
+
+function readRosterValues_() {
+  try {
+    const sheet = getRosterSheet_();
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return { ok: true, values: [], headerIndexMap: {} };
+
+    const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    const headerIndexMap = getRosterHeaderIndexMap_(values[0] || []);
+    const missing = getRosterMissingHeaders_(headerIndexMap);
+    if (missing.length) {
+      return { ok: false, error: `名冊缺少欄位：${missing.join('、')}（請確認名冊第一列標題）`, values: [], headerIndexMap: {} };
+    }
+    return { ok: true, values, headerIndexMap };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e || '未知錯誤'), values: [], headerIndexMap: {} };
+  }
+}
+
 function normalizeRosterRow_(rowValues, headerIndexMap) {
   const classIdx = headerIndexMap[ROSTER_HEADERS_.className];
   const idIdx = headerIndexMap[ROSTER_HEADERS_.studentId];
@@ -239,20 +266,11 @@ function getRosterDistinctClasses_() {
     const cached = cache.get(cacheKey);
     if (cached) return { ok: true, classes: JSON.parse(cached) };
 
-    const sheet = getRosterSheet_();
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return { ok: true, classes: [] };
-
-    const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    const headerIndexMap = getRosterHeaderIndexMap_(values[0] || []);
-    const missingHeaders = [];
-    if (headerIndexMap[ROSTER_HEADERS_.className] == null) missingHeaders.push(ROSTER_HEADERS_.className);
-    if (headerIndexMap[ROSTER_HEADERS_.studentId] == null) missingHeaders.push(ROSTER_HEADERS_.studentId);
-    if (headerIndexMap[ROSTER_HEADERS_.name] == null) missingHeaders.push(ROSTER_HEADERS_.name);
-    if (missingHeaders.length) {
-      return { ok: false, error: `名冊缺少欄位：${missingHeaders.join('、')}（請確認名冊第一列標題）`, classes: [] };
-    }
+    const snap = readRosterValues_();
+    if (!snap.ok) return { ok: false, error: snap.error, classes: [] };
+    const values = snap.values;
+    const headerIndexMap = snap.headerIndexMap;
+    if (!values.length) return { ok: true, classes: [] };
 
     const uniq = {};
     for (let r = 1; r < values.length; r++) {
@@ -281,20 +299,11 @@ function getRosterStudentsByClass_(className) {
     const cached = cache.get(cacheKey);
     if (cached) return { ok: true, students: JSON.parse(cached) };
 
-    const sheet = getRosterSheet_();
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return { ok: true, students: [] };
-
-    const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    const headerIndexMap = getRosterHeaderIndexMap_(values[0] || []);
-    const missingHeaders = [];
-    if (headerIndexMap[ROSTER_HEADERS_.className] == null) missingHeaders.push(ROSTER_HEADERS_.className);
-    if (headerIndexMap[ROSTER_HEADERS_.studentId] == null) missingHeaders.push(ROSTER_HEADERS_.studentId);
-    if (headerIndexMap[ROSTER_HEADERS_.name] == null) missingHeaders.push(ROSTER_HEADERS_.name);
-    if (missingHeaders.length) {
-      return { ok: false, error: `名冊缺少欄位：${missingHeaders.join('、')}（請確認名冊第一列標題）` };
-    }
+    const snap = readRosterValues_();
+    if (!snap.ok) return { ok: false, error: snap.error };
+    const values = snap.values;
+    const headerIndexMap = snap.headerIndexMap;
+    if (!values.length) return { ok: true, students: [] };
 
     const out = [];
     for (let r = 1; r < values.length; r++) {
@@ -324,20 +333,11 @@ function lookupRosterStudentById_(studentId) {
     const cached = cache.get(cacheKey);
     if (cached) return { ok: true, student: JSON.parse(cached) };
 
-    const sheet = getRosterSheet_();
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return { ok: true, student: null };
-
-    const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    const headerIndexMap = getRosterHeaderIndexMap_(values[0] || []);
-    const missingHeaders = [];
-    if (headerIndexMap[ROSTER_HEADERS_.className] == null) missingHeaders.push(ROSTER_HEADERS_.className);
-    if (headerIndexMap[ROSTER_HEADERS_.studentId] == null) missingHeaders.push(ROSTER_HEADERS_.studentId);
-    if (headerIndexMap[ROSTER_HEADERS_.name] == null) missingHeaders.push(ROSTER_HEADERS_.name);
-    if (missingHeaders.length) {
-      return { ok: false, error: `名冊缺少欄位：${missingHeaders.join('、')}（請確認名冊第一列標題）` };
-    }
+    const snap = readRosterValues_();
+    if (!snap.ok) return { ok: false, error: snap.error };
+    const values = snap.values;
+    const headerIndexMap = snap.headerIndexMap;
+    if (!values.length) return { ok: true, student: null };
 
     let found = null;
     for (let r = 1; r < values.length; r++) {
@@ -650,7 +650,6 @@ function handleSubmitLeaveForm_(event) {
     };
   }
 
-  const leaveTimeText = data.leaveType === '全日' ? '全日' : formatSchoolTimeslotRange_(data.leaveStart, data.leaveEnd);
   // 寫入 Google Sheet 的請假時間：自動換算成實際時間段（HH:mm-HH:mm）
   const leaveTimeForSheet = data.leaveType === '全日' ? '全日' : formatTimeslotRangeToClock_(data.leaveStart, data.leaveEnd);
   const exitTimeText = data.leaveType === '全日' ? '' : getTimeslotEndTime_(data.leaveEnd);
@@ -686,8 +685,6 @@ function handleSubmitLeaveForm_(event) {
 
   if (missing.length) {
     const keys = Object.keys(inputs || {});
-    const sampleKey = keys[0];
-    const sampleRaw = sampleKey ? safeJson_(inputs[sampleKey]) : null;
     const extractedLines =
       keys.length === 0
         ? ''
@@ -701,7 +698,7 @@ function handleSubmitLeaveForm_(event) {
             `- leaveType="${data.leaveType}"`,
             `- leaveStart="${data.leaveStart}"`,
             `- leaveEnd="${data.leaveEnd}"`,
-            `- leaveTimeText="${leaveTimeText}"`,
+            `- leaveTimeForSheet="${leaveTimeForSheet}"`,
             `- reasonChoice="${data.reasonChoice}"`,
             `- reasonOther="${data.reasonOther}"`,
             `- reasonText="${reasonText}"`,
@@ -711,16 +708,12 @@ function handleSubmitLeaveForm_(event) {
       keys.length === 0
         ? '（偵錯）本次事件沒有帶回任何 formInputs。通常代表 Chat App 的互動事件未正確傳遞表單值，或使用的事件 payload 路徑不同。'
         : `（偵錯）收到的 formInputs keys：${keys.join(', ')}`;
-    const rawDebug = sampleKey
-      ? `\n（偵錯）樣本 payload（${sampleKey}）：\n${sampleRaw}`
-      : '';
     return {
       text:
         `以下欄位尚未填寫：${missing.join('、')}\n\n` +
         '請再檢查表單後重新按「送出」。\n' +
         debug +
-        extractedLines +
-        rawDebug,
+        extractedLines,
     };
   }
 
@@ -835,18 +828,6 @@ function updateDocumentStatusByRow_(row, statusText) {
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e || '未知錯誤') };
   }
-}
-
-function formatSchoolTimeslotRange_(startValue, endValue) {
-  const s = String(startValue || '').trim();
-  const e = String(endValue || '').trim();
-  if (!s || !e) return [s, e].filter(Boolean).join(' - ');
-  const sn = Number(s);
-  const en = Number(e);
-  if (!Number.isFinite(sn) || !Number.isFinite(en)) return `${s} - ${e}`;
-  const a = Math.min(sn, en);
-  const b = Math.max(sn, en);
-  return `第${a}節-第${b}節`;
 }
 
 function getTimeslotEndTime_(slotValue) {
@@ -1006,14 +987,3 @@ function hasMeaningfulFormInputs_(event) {
     return false;
   }
 }
-
-function safeJson_(obj) {
-  try {
-    const s = JSON.stringify(obj, null, 2);
-    // 避免訊息太長被 Chat 截斷
-    return s.length > 1200 ? s.slice(0, 1200) + '\n...（已截斷）' : s;
-  } catch (e) {
-    return String(obj);
-  }
-}
-
