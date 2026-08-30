@@ -1,0 +1,1 @@
+# 部署根目錄為 src/；templates/ 與根目錄設定檔不會被 clasp push
