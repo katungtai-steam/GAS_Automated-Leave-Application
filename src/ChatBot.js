@@ -4,60 +4,97 @@
 
 function buildUpdateMessageResponse_(cardPayload) {
   return Object.assign({}, cardPayload || {}, {
-    actionResponse: { type: 'UPDATE_MESSAGE' },
+    actionResponse: {
+      type: 'UPDATE_MESSAGE',
+    },
   });
 }
 
 function onMessage(event) {
   try {
-    if (hasImageAttachment_(event)) return handleDocumentAttachment_(event);
-    const text = String((event && event.message && event.message.text) || '').trim();
-    if (!text) return { text: '我目前只處理文字訊息。' };
-    if (/^(工作記錄|worklog|違規)$/i.test(text)) return buildWorkLogFormCard_();
-    if (/^(請假|leave|事假)$/i.test(text)) return buildLeaveFormCard_();
-    return buildMainMenuCard_();
+    const ev = augmentEventForHandlers_(event);
+    console.info('onMessage', usesNewChatEventFormat_(event) ? 'new-format' : 'legacy');
+
+    if (hasImageAttachment_(ev)) {
+      return wrapChatBotResponse_(event, handleDocumentAttachment_(ev));
+    }
+
+    const slashResult = handleSlashCommand_(ev);
+    if (slashResult) return wrapChatBotResponse_(event, slashResult);
+
+    const text = String((ev.message && ev.message.text) || '').trim();
+    if (!text) return wrapChatBotResponse_(event, { text: '我目前只處理文字訊息。' });
+    if (/^(工作記錄|worklog|違規)$/i.test(text)) return wrapChatBotResponse_(event, buildWorkLogFormCard_());
+    if (/^(請假|leave|事假)$/i.test(text)) return wrapChatBotResponse_(event, buildLeaveFormCard_());
+    return wrapChatBotResponse_(event, buildMainMenuCard_());
   } catch (err) {
-    return { text: '處理時發生錯誤，請稍後再試。' };
+    console.error('onMessage error', err);
+    return wrapChatBotResponse_(event, {
+      text: '處理時發生錯誤：' + String((err && err.message) || err || '未知錯誤'),
+    });
+  }
+}
+
+/**
+ * 部分 Chat App 部署（含 slash command）會走 APP_COMMAND 而非 MESSAGE。
+ */
+function onAppCommand(event) {
+  try {
+    const meta = getAppCommandMetadata_(event);
+    console.info('onAppCommand', JSON.stringify(meta));
+    const result = handleAppCommandEvent_(event);
+    if (result) return wrapChatBotResponse_(event, result);
+    return wrapChatBotResponse_(event, {
+      text: '未識別的 app command（id=' + String(meta.appCommandId) + '）。\n\n' + getSlashCommandHelpText_(),
+    });
+  } catch (err) {
+    console.error('onAppCommand error', err);
+    return wrapChatBotResponse_(event, {
+      text: '處理指令時發生錯誤：' + String((err && err.message) || err || '未知錯誤'),
+    });
   }
 }
 
 function onCardClick(event) {
   try {
+    const ev = augmentEventForHandlers_(event);
     const invoked =
-      (event && event.common && event.common.invokedFunction) ||
-      (event && event.action && (event.action.actionMethodName || event.action.actionMethod)) ||
+      (ev.common && ev.common.invokedFunction) ||
+      (ev.action && (ev.action.actionMethodName || ev.action.actionMethod)) ||
       '';
 
     if (invoked === 'openMainMenu') return buildMainMenuCard_();
     if (invoked === 'openWorkLogForm') return buildWorkLogFormCard_();
-    if (invoked === 'submitWorkLogForm') return handleSubmitWorkLogForm_(event);
-    if (invoked === 'refreshWorkLogForm') return buildUpdateMessageResponse_(buildWorkLogFormCard_(event));
+    if (invoked === 'submitWorkLogForm') return handleSubmitWorkLogForm_(ev);
+    if (invoked === 'refreshWorkLogForm') return buildUpdateMessageResponse_(buildWorkLogFormCard_(ev));
 
-    if (invoked === 'submitLeaveForm') return handleSubmitLeaveForm_(event);
+    if (invoked === 'submitLeaveForm') return handleSubmitLeaveForm_(ev);
     if (invoked === 'openLeaveForm') return buildLeaveFormCard_();
-    if (invoked === 'refreshLeaveForm') return buildUpdateMessageResponse_(buildLeaveFormCard_(event));
+    if (invoked === 'refreshLeaveForm') return buildUpdateMessageResponse_(buildLeaveFormCard_(ev));
 
-    if (isWorkLogFormInputs_(event)) return buildUpdateMessageResponse_(buildWorkLogFormCard_(event));
-    if (hasMeaningfulFormInputs_(event)) return buildUpdateMessageResponse_(buildLeaveFormCard_(event));
+    if (isWorkLogFormInputs_(ev)) return buildUpdateMessageResponse_(buildWorkLogFormCard_(ev));
+    if (hasMeaningfulFormInputs_(ev)) return buildUpdateMessageResponse_(buildLeaveFormCard_(ev));
 
-    return buildMainMenuCard_();
+    return wrapChatBotResponse_(event, buildMainMenuCard_());
   } catch (err) {
-    return { text: '處理表單時發生錯誤，請稍後再試。' };
+    console.error('onCardClick error', err);
+    return wrapChatBotResponse_(event, { text: '處理表單時發生錯誤，請稍後再試。' });
   }
 }
 
 function onAddToSpace(event) {
   try {
-    const spaceName = (event && event.space && (event.space.displayName || event.space.name)) || '此對話';
-    const who = (event && event.user && event.user.displayName) || '同學';
-    return {
+    const ev = augmentEventForHandlers_(event);
+    const spaceName = (ev.space && (ev.space.displayName || ev.space.name)) || '此對話';
+    const who = (ev.user && ev.user.displayName) || '同學';
+    return wrapChatBotResponse_(event, {
       text:
         `已加入：${spaceName}\n` +
         `你好 ${who}！我可以協助「事假申請」與「工作記錄」。\n\n` +
-        '請輸入任意文字以開啟主選單。',
-    };
+        getSlashCommandHelpText_(),
+    });
   } catch (err) {
-    return { text: '已加入此空間。請輸入任意文字以開啟主選單。' };
+    return wrapChatBotResponse_(event, { text: '已加入此空間。' + getSlashCommandHelpText_() });
   }
 }
 

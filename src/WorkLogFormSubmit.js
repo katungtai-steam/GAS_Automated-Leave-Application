@@ -65,12 +65,13 @@ function handleSubmitWorkLogForm_(event) {
   const writeResult = appendWorkLogToSheet_({
     recordedAt: data.recordedAt,
     className: data.className,
-    studentId: data.studentId,
     name: data.name,
-    eventDescription: data.eventDescription,
     violationCategory: gemini.violationCategory,
     handlingLevel: gemini.handlingLevel,
-    recorder: data.recorder,
+    eventDetail: gemini.eventDetail,
+    needNotifyEmail: gemini.needNotifyEmail,
+    followUpStatus: WORK_LOG_DEFAULT_FOLLOW_UP_STATUS_,
+    rawDescription: data.eventDescription,
   });
 
   if (!writeResult.ok) {
@@ -84,14 +85,15 @@ function handleSubmitWorkLogForm_(event) {
   return {
     text:
       '工作記錄已寫入試算表。\n' +
-      `- 記錄時間：${timeText}\n` +
+      `- 日期時間：${timeText}\n` +
       `- 班別：${data.className}\n` +
-      `- 學號：${data.studentId}\n` +
-      `- 姓名：${data.name}\n` +
-      `- 事件描述：${data.eventDescription}\n` +
-      `- 違規類別（Gemini）：${gemini.violationCategory}\n` +
-      `- 處理等級（Gemini）：${gemini.handlingLevel}\n` +
-      `- 記錄者：${data.recorder}\n` +
+      `- 學生姓名：${data.name}\n` +
+      `- 違規類別：${gemini.violationCategory}\n` +
+      `- 處理等級：${gemini.handlingLevel}\n` +
+      `- 事件詳情：${gemini.eventDetail}\n` +
+      `- 是否需發信：${gemini.needNotifyEmail}\n` +
+      `- 跟進狀態：${WORK_LOG_DEFAULT_FOLLOW_UP_STATUS_}\n` +
+      `- 原始完整描述：${data.eventDescription}\n` +
       `- 試算表：${writeResult.spreadsheetUrl}\n\n` +
       '輸入任意文字可回到主選單。',
   };

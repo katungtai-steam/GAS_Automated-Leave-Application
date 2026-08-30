@@ -111,20 +111,36 @@ function buildClassOptions_(gradeCount, classLetters) {
 }
 
 // --- 工作記錄（Work Log）---
-const WORK_LOG_SHEET_NAME_ = 'WorkLog';
+/** 工作記錄專用試算表 ID（與請假/名冊分開） */
+const WORK_LOG_SPREADSHEET_ID_ = '1h33T3VRMaD0_4x_dLsXWpyH26w0AUYgFqPewf3N7xnU';
+/** 工作表名稱；留空則用試算表第一個工作表（gid=0） */
+const WORK_LOG_SHEET_NAME_ = '';
 const WORK_LOG_SHEET_HEADERS_ = [
-  '記錄時間',
+  '日期',
+  '時間',
   '班別',
-  '學號',
-  '姓名',
-  '事件描述',
+  '學生姓名',
   '違規類別',
   '處理等級',
-  '記錄者',
+  '事件詳情',
+  '是否需發信',
+  '跟進狀態',
+  '原始完整描述',
 ];
+/** 新紀錄預設跟進狀態 */
+const WORK_LOG_DEFAULT_FOLLOW_UP_STATUS_ = '待跟進';
+const WORK_LOG_NEED_EMAIL_OPTIONS_ = ['是', '否'];
+
+/** Slash commands：請在 Google Chat API 設定相同 Command ID 與名稱 */
+const SLASH_CMD_LEAVE_ID_ = 1;
+const SLASH_CMD_WORKLOG_ID_ = 2;
+const SLASH_CMD_MENU_ID_ = 3;
+const SLASH_CMD_LEAVE_NAMES_ = ['leave', '事假', '請假'];
+const SLASH_CMD_WORKLOG_NAMES_ = ['worklog', '工作記錄', '違規'];
+const SLASH_CMD_MENU_NAMES_ = ['menu', '選單', 'help', '幫助'];
 /** Script Properties 中的 Gemini API Key 名稱（勿寫死在程式碼） */
 const GEMINI_API_KEY_PROPERTY_ = 'GEMINI_API_KEY';
-const GEMINI_MODEL_ = 'gemini-2.0-flash';
+const GEMINI_MODEL_ = 'gemini-3.6-flash';
 /** Gemini 分類時只能從下列選項擇一（可依校規修改） */
 const WORK_LOG_VIOLATION_CATEGORIES_ = [
   '遲到/缺席',
@@ -136,3 +152,8 @@ const WORK_LOG_VIOLATION_CATEGORIES_ = [
   '其他',
 ];
 const WORK_LOG_HANDLING_LEVELS_ = ['口頭警告', '書面警告', '記過/懲罰', '轉介/跟進', '其他'];
+
+/** 開啟工作記錄試算表 */
+function openWorkLogSpreadsheet_() {
+  return SpreadsheetApp.openById(WORK_LOG_SPREADSHEET_ID_);
+}

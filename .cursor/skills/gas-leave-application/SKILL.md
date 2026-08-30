@@ -43,7 +43,7 @@ clasp status    # 應列出 src/ 下 10 個檔案
 | `WorkLogFormCard.js` | 工作記錄卡片 UI |
 | `WorkLogFormSubmit.js` | 工作記錄送出（GAS 名冊 + Gemini 解析） |
 | `WorkLogGemini.js` | Gemini API：事件描述 → 違規類別/處理等級 |
-| `WorkLogSheetService.js` | 工作記錄試算表寫入 |
+| `SlashCommandRouter.js` | Slash command 路由 |
 
 ## 開發慣例
 
@@ -56,10 +56,9 @@ clasp status    # 應列出 src/ 下 10 個檔案
 ## Chat 事件流程
 
 ```
-onMessage → buildMainMenuCard_（或關鍵字：工作記錄 / 請假）
-onCardClick → invokedFunction:
-  openMainMenu / openWorkLogForm / submitWorkLogForm / refreshWorkLogForm
-  submitLeaveForm / openLeaveForm / refreshLeaveForm
+onMessage → handleSlashCommand_ 或文字關鍵字 或 buildMainMenuCard_
+Slash: /事假 /工作記錄 /選單（Command ID 1/2/3，見 reference.md）
+onCardClick → invokedFunction: ...
 ```
 
 工作記錄：姓名/班別僅 GAS 名冊；`wlEventDescription` 送出後才送 Gemini（Script property `GEMINI_API_KEY`）。

@@ -14,7 +14,9 @@ function buildWorkLogGeminiPrompt_(eventDescription) {
     '處理等級只能擇一：' +
     levels +
     '\n' +
-    '只回傳 JSON，格式：{"violationCategory":"...","handlingLevel":"..."}\n\n' +
+    '是否需發信只能擇一：是、否（嚴重或需通知家長/老師填「是」）\n' +
+    '另請以一句話整理「事件詳情」（精簡摘要，不含學生班別姓名）。\n' +
+    '只回傳 JSON，格式：{"violationCategory":"...","handlingLevel":"...","eventDetail":"...","needNotifyEmail":"是或否"}\n\n' +
     '事件描述：\n' +
     String(eventDescription || '').trim()
   );
@@ -35,7 +37,7 @@ function parseWorkLogEventWithGemini_(eventDescription) {
       };
     }
 
-    const model = String(GEMINI_MODEL_ || 'gemini-2.0-flash').trim();
+    const model = String(GEMINI_MODEL_ || 'gemini-3.6-flash').trim();
     const url =
       'https://generativelanguage.googleapis.com/v1beta/models/' +
       encodeURIComponent(model) +
@@ -77,8 +79,10 @@ function parseWorkLogEventWithGemini_(eventDescription) {
     const parsed = JSON.parse(String(text).trim());
     const violationCategory = normalizeWorkLogCategory_(parsed.violationCategory, WORK_LOG_VIOLATION_CATEGORIES_);
     const handlingLevel = normalizeWorkLogCategory_(parsed.handlingLevel, WORK_LOG_HANDLING_LEVELS_);
+    const eventDetail = String(parsed.eventDetail || parsed.eventSummary || '').trim() || desc;
+    const needNotifyEmail = normalizeWorkLogCategory_(parsed.needNotifyEmail, WORK_LOG_NEED_EMAIL_OPTIONS_);
 
-    return { ok: true, violationCategory, handlingLevel };
+    return { ok: true, violationCategory, handlingLevel, eventDetail, needNotifyEmail };
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e || 'Gemini 解析失敗') };
   }

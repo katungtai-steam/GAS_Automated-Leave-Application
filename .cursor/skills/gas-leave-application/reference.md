@@ -53,21 +53,40 @@
 
 ## 工作記錄（WorkLog）
 
-工作表：`WorkLog`（不存在時自動建立）
+試算表：`WORK_LOG_SPREADSHEET_ID_`（獨立於請假/名冊試算表）
+
+工作表：`WORK_LOG_SHEET_NAME_` 留空 → 使用第一個工作表（gid=0）
 
 | 欄位 | 來源 |
 |------|------|
-| 記錄時間、班別、學號、姓名、記錄者 | GAS 名冊 / 事件 |
-| 事件描述 | 使用者輸入 |
-| 違規類別、處理等級 | **僅** `wlEventDescription` 送 Gemini |
+| 日期、時間 | GAS（送出當下） |
+| 班別、學生姓名 | GAS 名冊 |
+| 違規類別、處理等級、事件詳情、是否需發信 | Gemini（僅原始描述） |
+| 跟進狀態 | 預設 `待跟進` |
+| 原始完整描述 | 使用者輸入原文 |
 
 設定：
 
 - Script property：`GEMINI_API_KEY`
 - 分類清單：`WORK_LOG_VIOLATION_CATEGORIES_`、`WORK_LOG_HANDLING_LEVELS_`（`ChatBotConfig.js`）
-- 模型：`GEMINI_MODEL_`（預設 `gemini-2.0-flash`）
+- 模型：`GEMINI_MODEL_`（預設 `gemini-3.6-flash`）
 
-Chat 觸發：主選單 →「工作記錄」，或輸入「工作記錄」。
+Chat 觸發：主選單 →「工作記錄」，或輸入「工作記錄」，或 `/工作記錄`。
+
+## Slash Commands（Google Chat API 設定）
+
+在 [Google Chat API → Configuration](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat) 新增：
+
+| Command ID | 名稱（Name） | 說明 | 程式常數 |
+|------------|-------------|------|----------|
+| 1 | `/事假` | 開啟事假申請表單 | `SLASH_CMD_LEAVE_ID_` |
+| 2 | `/工作記錄` | 開啟工作記錄表單 | `SLASH_CMD_WORKLOG_ID_` |
+| 3 | `/選單` | 開啟主選單 | `SLASH_CMD_MENU_ID_` |
+
+**Name 必須以 `/` 開頭**（例如 `/事假`）。Command type 選 **Slash command**。
+Command ID 須與 `ChatBotConfig.js` 一致。另支援別名：`leave`/`請假`、`worklog`/`違規`、`menu`/`help`。
+
+儲存設定後重新部署 Chat App，在聊天室輸入 `/事假` 或 `/工作記錄` 測試。
 
 ---
 
