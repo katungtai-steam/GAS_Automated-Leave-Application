@@ -33,9 +33,7 @@ const LEAVE_SHEET_HEADERS_ = [
  * 範本內請置入（與下列字元完全一致）：
  * {{Name}} {{Class}} {{StudentId}} {{Reason}} {{ApplyDate}} {{DocumentStatus}}
  * {{CheckRange}} {{CheckSlot}} {{LeaveRangeSentence}} {{LeaveSlotSentence}}
- * {{LeaveDate}} {{LeaveTime}} {{exitTime}}
- * {{LeaveSlotSentence}}：一天時段為真實早退句；其餘類型為空白版位句（LEAVE_DOC_BLANK_SLOT_SENTENCE_）。
- * {{LeaveRangeSentence}}：區間／半天為真實告假句；一天時段為空白版位句（LEAVE_DOC_BLANK_RANGE_SENTENCE_）。
+ * {{LeaveDate}} {{LeaveTime}} {{exitTime}}（空白句見 LEAVE_DOC_BLANK_*）
  */
 const LEAVE_DOC_TEMPLATE_ID_ = '1ZEC68X0J5cUElAnl5_83_xoz3x80Mhu3dPR0n6T7F24';
 const LEAVE_DOC_OUTPUT_FOLDER_ID_ = '1f3inCMDSYc1pl2dEJDCShxW__9d8GcD-';
@@ -116,10 +114,15 @@ function parseSheetDateStringMs_(s) {
   return d.getTime();
 }
 
+function normalizeLeaveCategoryValue_(v) {
+  let c = String(v == null ? '' : v).trim() || 'day_slots';
+  if (c !== 'day_slots' && c !== 'half_full_day' && c !== 'full_day_range') c = 'day_slots';
+  return c;
+}
+
 /** 寫入試算表「請假類型」欄的簡短文字（便於篩選、閱讀） */
 function leaveTypeDisplayForSheet_(cat, halfKey) {
-  let c = String(cat || 'day_slots').trim() || 'day_slots';
-  if (c !== 'day_slots' && c !== 'half_full_day' && c !== 'full_day_range') c = 'day_slots';
+  const c = normalizeLeaveCategoryValue_(cat);
   if (c === 'day_slots') return '一天時段';
   if (c === 'full_day_range') return '全日區間';
   const hk = String(halfKey || 'am').trim();
@@ -132,8 +135,6 @@ function splitClockRangeForSheet_(clockRangeStr) {
   const raw = String(clockRangeStr || '').trim();
   const m = raw.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
   if (m) return { timeStart: m[1], timeEnd: m[2] };
-  const m2 = raw.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
-  if (m2) return { timeStart: m2[1], timeEnd: m2[2] };
   if (raw) return { timeStart: raw, timeEnd: '' };
   return { timeStart: '', timeEnd: '' };
 }
@@ -143,8 +144,7 @@ function splitClockRangeForSheet_(clockRangeStr) {
  * 另附 leaveTimeForSheet／leaveDateCell 供除錯與聊天摘要。
  */
 function buildSheetLeaveFields_(data) {
-  let cat = String(data.leaveCategory || 'day_slots').trim() || 'day_slots';
-  if (cat !== 'day_slots' && cat !== 'half_full_day' && cat !== 'full_day_range') cat = 'day_slots';
+  const cat = normalizeLeaveCategoryValue_(data && data.leaveCategory);
   const leaveDate = String(data.leaveDate || '').trim();
   const leaveDateEnd = String(data.leaveDateEnd || '').trim();
   const halfKey = String(data.halfFullChoice || 'am').trim();
@@ -193,12 +193,6 @@ function buildSheetLeaveFields_(data) {
   };
 }
 
-function leaveCategoryNormalizedForDoc_(data) {
-  let c = String((data && data.leaveCategory) || 'day_slots').trim() || 'day_slots';
-  if (c !== 'day_slots' && c !== 'half_full_day' && c !== 'full_day_range') c = 'day_slots';
-  return c;
-}
-
 /** yyyy/MM/dd →「5月2日」供告假句使用 */
 function formatDateToMonthDayChinese_(yyyyMmDd) {
   const m = String(yyyyMmDd || '').trim().match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
@@ -231,7 +225,7 @@ function buildLeaveDocReplacements_(data, sheetLeave, submittedAt, reasonText) {
   const tz = Session.getScriptTimeZone() || 'Asia/Taipei';
   const at = submittedAt instanceof Date ? submittedAt : new Date();
   const applyDate = Utilities.formatDate(at, tz, 'yyyy/MM/dd');
-  const cat = leaveCategoryNormalizedForDoc_(data);
+  const cat = normalizeLeaveCategoryValue_(data && data.leaveCategory);
   const reason = String(reasonText != null ? reasonText : '').trim();
   let rangeSentence = buildLeaveRangeSentenceForDoc_(cat, data, sheetLeave);
   if (!String(rangeSentence || '').trim()) rangeSentence = LEAVE_DOC_BLANK_RANGE_SENTENCE_;
@@ -400,6 +394,16 @@ function getUserKey_(event) {
   const space = (event && event.space && event.space.name) || 'unknown_space';
   const user = (event && event.user && event.user.name) || 'unknown_user';
   return `${space}::${user}`;
+}
+
+/** 回傳「\\n- 試算表：URL」；無法取得時為空字串 */
+function trySpreadsheetBulletLine_() {
+  try {
+    if (SPREADSHEET_ID_ && SPREADSHEET_ID_ !== 'YOUR_SPREADSHEET_ID') {
+      return '\n- 試算表：' + openMainSpreadsheet_().getUrl();
+    }
+  } catch (e) {}
+  return '';
 }
 
 function appendLeaveToSheet_(data) {
@@ -714,10 +718,7 @@ function buildLeaveFormCard_(event) {
     }
   } catch (e) {}
 
-  let leaveCategory = getFormValue_(inputs, 'leaveCategory') || 'day_slots';
-  if (leaveCategory !== 'day_slots' && leaveCategory !== 'half_full_day' && leaveCategory !== 'full_day_range') {
-    leaveCategory = 'day_slots';
-  }
+  const leaveCategory = normalizeLeaveCategoryValue_(getFormValue_(inputs, 'leaveCategory') || 'day_slots');
   const leaveDateMs = getDateValueMsFromInputs_(inputs, 'leaveDate');
   const leaveDateEndMs = getDateValueMsFromInputs_(inputs, 'leaveDateEnd');
   const currentHalfFull = getFormValue_(inputs, 'halfFullChoice') || 'am';
@@ -1080,7 +1081,6 @@ function handleSubmitLeaveForm_(event) {
   const sheetLeave = buildSheetLeaveFields_(data);
   const leaveTimeForSheet = sheetLeave.leaveTimeForSheet;
   const exitTimeText = sheetLeave.exitTimeText;
-  const leaveDateForSheet = sheetLeave.leaveDateCell;
   const leaveTypeLabel = sheetLeave.leaveTypeLabel;
   const leaveDateStart = sheetLeave.dateStart;
   const leaveDateEnd = sheetLeave.dateEnd;
@@ -1097,8 +1097,7 @@ function handleSubmitLeaveForm_(event) {
   if (!String(data.studentKey || '').trim()) missing.push('學生（從名冊選取）');
   if (!data.studentId) missing.push('學號（從名冊選取）');
   if (!data.name) missing.push('姓名（從名冊選取）');
-  let leaveCat = String(data.leaveCategory || 'day_slots').trim() || 'day_slots';
-  if (leaveCat !== 'day_slots' && leaveCat !== 'half_full_day' && leaveCat !== 'full_day_range') leaveCat = 'day_slots';
+  const leaveCat = normalizeLeaveCategoryValue_(data.leaveCategory);
   if (!data.leaveDate) missing.push(leaveCat === 'full_day_range' ? '事假開始日期' : '事假日期');
   if (leaveCat === 'day_slots') {
     if (!data.leaveStart) missing.push('時段開始');
@@ -1181,17 +1180,11 @@ function handleSubmitLeaveForm_(event) {
     leaveFormRef: '',
   });
   if (!writeResult.ok) {
-    let sheetLine = '';
-    try {
-      if (SPREADSHEET_ID_ && SPREADSHEET_ID_ !== 'YOUR_SPREADSHEET_ID') {
-        sheetLine = '\n- 試算表：' + openMainSpreadsheet_().getUrl();
-      }
-    } catch (e0) {}
     return {
       text:
         '寫入 Google Sheet 失敗：\n' +
         writeResult.error +
-        sheetLine +
+        trySpreadsheetBulletLine_() +
         '\n\n請確認 Sheet ID 與權限，或稍後再試。',
     };
   }
@@ -1282,13 +1275,7 @@ function handleDocumentAttachment_(event) {
 
     const updateResult = updateDocumentStatusByRow_(Number(lastRow), DOCUMENT_STATUS_HAS_FILE_);
     if (!updateResult.ok) {
-      let sheetLine = '';
-      try {
-        if (SPREADSHEET_ID_ && SPREADSHEET_ID_ !== 'YOUR_SPREADSHEET_ID') {
-          sheetLine = '\n- 試算表：' + openMainSpreadsheet_().getUrl();
-        }
-      } catch (ex) {}
-      return { text: `收到文件，但更新試算表失敗：${updateResult.error}${sheetLine}` };
+      return { text: `收到文件，但更新試算表失敗：${updateResult.error}${trySpreadsheetBulletLine_()}` };
     }
 
     return {
