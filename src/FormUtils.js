@@ -20,15 +20,33 @@ function getDateValueMsFromInputs_(formInputs, name) {
       }
     }
     const c = (unwrapped.dateInput || unwrapped.dateTimeInput || unwrapped) || {};
-    if (c.msSinceEpoch != null) return Number(c.msSinceEpoch);
+    if (c.msSinceEpoch != null) {
+      const ms = Number(c.msSinceEpoch);
+      return ms > 0 ? ms : null;
+    }
     if (c.year != null && c.month != null && c.day != null) {
       const d = new Date(Number(c.year), Number(c.month) - 1, Number(c.day));
-      return isNaN(d.getTime()) ? null : d.getTime();
+      const ms = d.getTime();
+      return isNaN(ms) || ms <= 0 ? null : ms;
     }
     return null;
   } catch (e) {
     return null;
   }
+}
+
+/** 腳本時區「今天」0:00 的毫秒時間戳（Chat dateTimePicker 預設） */
+function getTodayDateMsEpoch_() {
+  const tz = Session.getScriptTimeZone();
+  const dateStr = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  return Utilities.parseDate(dateStr, tz, 'yyyy-MM-dd').getTime();
+}
+
+/** 從表單讀取日期；未填或無效時預設今天 */
+function resolveFormDateMsDefaultToday_(formInputs, name) {
+  const ms = getDateValueMsFromInputs_(formInputs, name);
+  if (ms != null && ms > 0) return ms;
+  return getTodayDateMsEpoch_();
 }
 
 function getGmailUsernameFromEvent_(event) {
@@ -67,8 +85,11 @@ function getFormValue_(formInputs, name) {
       const c = candidates[i];
       if (!c) continue;
       if (c.msSinceEpoch != null) {
-        const d = new Date(Number(c.msSinceEpoch));
-        if (!isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+        const ms = Number(c.msSinceEpoch);
+        if (ms > 0) {
+          const d = new Date(ms);
+          if (!isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+        }
       }
       if (c.year != null && c.month != null && c.day != null) {
         const d = new Date(Number(c.year), Number(c.month) - 1, Number(c.day));

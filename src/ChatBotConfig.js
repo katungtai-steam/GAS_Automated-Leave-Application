@@ -10,7 +10,7 @@
  * - 填完按「送出」寫入 Google Sheet
  */
 
-// 請假紀錄與學生名冊已合併為同一個試算表：只填一個 ID（網址中 /d/<ID>/ 的那段）
+// 請假紀錄試算表 ID（網址中 /d/<ID>/ 的那段）
 const SPREADSHEET_ID_ = '1W2lQmEH9395IpywwjHaRMJ2ft625vR28EkbbnlXNmC4';
 const LEAVE_SHEET_NAME_ = 'Record'; // 事假申請寫入的工作表；留空則用試算表第一個工作表
 const LEAVE_SHEET_HEADERS_ = [
@@ -47,8 +47,9 @@ const LEAVE_DOC_BLANK_SLOT_SENTENCE_ = '＿＿月＿＿日  （時間︰________
 const LEAVE_DOC_BLANK_RANGE_SENTENCE_ =
   '＿＿月＿＿日（上午／下午）至＿＿月＿＿日（上午／下午）告假。';
 
-// 學生名冊：與請假紀錄同一試算表內的另一個工作表（老師代學生提交時選取學生）
-const ROSTER_SHEET_NAME_ = 'StudentList'; // 留空則用試算表第一個工作表（通常請改為實際名冊分頁名稱）
+// 學生名冊專用試算表（老師代學生提交時選取學生）
+const ROSTER_SPREADSHEET_ID_ = '1ts48CZDryrWelCjlqnpeeGfJNfWfPcqQ8XSVQg1ek0M';
+const ROSTER_SHEET_NAME_ = ''; // 留空則用試算表第一個工作表
 // 名冊欄位名稱（名冊第一列的標題）
 const ROSTER_HEADERS_ = {
   className: 'Class',
@@ -59,11 +60,16 @@ const ROSTER_HEADERS_ = {
 const ROSTER_MAX_STUDENTS_PER_CLASS_ = 35;
 const ROSTER_CACHE_TTL_SECONDS_ = 15 * 60; // 15 分鐘
 // 名冊快取 key 版本：當排序/解析邏輯變更時請遞增，避免舊快取造成「看起來沒更新」
-const ROSTER_CACHE_VERSION_ = 4;
+const ROSTER_CACHE_VERSION_ = 5;
 
-/** 開啟合併後的主試算表（請假紀錄 + 名冊同一檔） */
+/** 開啟請假紀錄試算表 */
 function openMainSpreadsheet_() {
   return SpreadsheetApp.openById(SPREADSHEET_ID_);
+}
+
+/** 開啟學生名冊試算表 */
+function openRosterSpreadsheet_() {
+  return SpreadsheetApp.openById(ROSTER_SPREADSHEET_ID_);
 }
 
 // 固定/常用選項（可依學校實際情況修改）
@@ -111,7 +117,7 @@ function buildClassOptions_(gradeCount, classLetters) {
 }
 
 // --- 工作記錄（Work Log）---
-/** 工作記錄專用試算表 ID（與請假/名冊分開） */
+/** 工作記錄專用試算表 ID（與請假/名冊/校服儀容分開） */
 const WORK_LOG_SPREADSHEET_ID_ = '1h33T3VRMaD0_4x_dLsXWpyH26w0AUYgFqPewf3N7xnU';
 /** 工作表名稱；留空則用試算表第一個工作表（gid=0） */
 const WORK_LOG_SHEET_NAME_ = '';
@@ -157,3 +163,47 @@ const WORK_LOG_HANDLING_LEVELS_ = ['口頭警告', '書面警告', '記過/懲�
 function openWorkLogSpreadsheet_() {
   return SpreadsheetApp.openById(WORK_LOG_SPREADSHEET_ID_);
 }
+
+// --- 校服儀容記錄（獨立於工作記錄；表單整合待後續開發）---
+/** 所有學生校服儀容總表試算表 ID */
+const UNIFORM_RECORD_SPREADSHEET_ID_ = '1uYBJ1J2RACFfuPOhHHoPlzm1uckBN1d5KLoY0XmH7D4';
+/** 依班別分流的校服儀容試算表（班別須與名冊 Class 一致，如 4A） */
+const UNIFORM_RECORD_CLASS_SPREADSHEET_IDS_ = {
+  '4A': '1g4nZTsu-Wrx4Vx4qwsGK2ahtKUTj6RyrzWvHmG5VnBQ',
+  '4B': '1-83ELE2E6Eq6ER6qEbRJr2VyfLe6XTrjEAkD_shg5SQ',
+  '4C': '1UNv34x4w0pL1S5N0jxJtKz1riblYzzVH1Ny7syMElN0',
+  '4D': '1Ylya5couK452_5BPWHEsAQP7LBCLdi5knah_jiyuJ-U',
+};
+/** 工作表名稱；留空則用試算表第一個工作表 */
+const UNIFORM_RECORD_SHEET_NAME_ = '';
+const UNIFORM_RECORD_SHEET_HEADERS_ = [
+  '違規日期',
+  '違規時間',
+  '班別',
+  '學號',
+  '姓名',
+  '違規類型',
+  '改善時間',
+];
+
+/** 開啟校服儀容總表試算表 */
+function openUniformRecordSpreadsheet_() {
+  return SpreadsheetApp.openById(UNIFORM_RECORD_SPREADSHEET_ID_);
+}
+
+// --- 班主任聯絡（校服儀容新記錄電郵通知）---
+/** 班主任 Gmail 聯絡表試算表 ID */
+const HOMEROOM_CONTACT_SPREADSHEET_ID_ = '1HRA6FgIy3ykEN9SLEWA55OmKNOQ1rErAEPjDDfUQ7Ag';
+/** 工作表名稱；留空則用第一個工作表 */
+const HOMEROOM_CONTACT_SHEET_NAME_ = '';
+/** 班主任聯絡表第一列標題（班別、Initial、姓名、gmail） */
+const HOMEROOM_CONTACT_HEADERS_ = {
+  className: '班別',
+  initial: 'Initial',
+  name: '姓名',
+  email: 'gmail',
+};
+const HOMEROOM_CONTACT_CACHE_TTL_SECONDS_ = 15 * 60;
+const HOMEROOM_CONTACT_CACHE_VERSION_ = 4;
+/** 各班試算表有新記錄時是否自動電郵班主任 */
+const UNIFORM_RECORD_NOTIFY_EMAIL_ENABLED_ = true;

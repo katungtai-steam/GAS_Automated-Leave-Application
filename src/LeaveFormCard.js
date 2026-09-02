@@ -37,8 +37,8 @@ function buildLeaveFormCard_(event) {
   } catch (e) {}
 
   const leaveCategory = normalizeLeaveCategoryValue_(getFormValue_(inputs, 'leaveCategory') || 'day_slots');
-  const leaveDateMs = getDateValueMsFromInputs_(inputs, 'leaveDate');
-  const leaveDateEndMs = getDateValueMsFromInputs_(inputs, 'leaveDateEnd');
+  const leaveDateMs = resolveFormDateMsDefaultToday_(inputs, 'leaveDate');
+  const leaveDateEndMs = resolveFormDateMsDefaultToday_(inputs, 'leaveDateEnd');
   const currentHalfFull = getFormValue_(inputs, 'halfFullChoice') || 'am';
 
   const leaveCategoryRadio = {
@@ -67,7 +67,7 @@ function buildLeaveFormCard_(event) {
           name: 'leaveDate',
           label: '事假日期',
           type: 'DATE_ONLY',
-          ...(leaveDateMs != null ? { valueMsEpoch: leaveDateMs } : {}),
+          valueMsEpoch: leaveDateMs,
         },
       },
       {
@@ -112,7 +112,7 @@ function buildLeaveFormCard_(event) {
           name: 'leaveDate',
           label: '事假日期',
           type: 'DATE_ONLY',
-          ...(leaveDateMs != null ? { valueMsEpoch: leaveDateMs } : {}),
+          valueMsEpoch: leaveDateMs,
         },
       },
       {
@@ -140,7 +140,7 @@ function buildLeaveFormCard_(event) {
           name: 'leaveDate',
           label: '事假開始日期',
           type: 'DATE_ONLY',
-          ...(leaveDateMs != null ? { valueMsEpoch: leaveDateMs } : {}),
+          valueMsEpoch: leaveDateMs,
         },
       },
       {
@@ -148,7 +148,7 @@ function buildLeaveFormCard_(event) {
           name: 'leaveDateEnd',
           label: '事假結束日期',
           type: 'DATE_ONLY',
-          ...(leaveDateEndMs != null ? { valueMsEpoch: leaveDateEndMs } : {}),
+          valueMsEpoch: leaveDateEndMs,
         },
       }
     );
@@ -217,7 +217,7 @@ function buildLeaveFormCard_(event) {
                         return [{ text: `名冊讀取失敗：${rosterClassResult.error}`, value: '', selected: true }];
                       }
                       if (!isRosterConfigured_()) {
-                        return [{ text: '尚未設定試算表 ID（SPREADSHEET_ID_）', value: '', selected: true }];
+                        return [{ text: '尚未設定試算表 ID（ROSTER_SPREADSHEET_ID_）', value: '', selected: true }];
                       }
                       if (!rosterClassStudents.length) {
                         return [{ text: '此班別在名冊找不到學生（請檢查名冊 Class 欄位是否與班別一致）', value: '', selected: true }];

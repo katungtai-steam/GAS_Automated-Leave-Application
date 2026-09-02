@@ -3,11 +3,11 @@
  */
 
 function isRosterConfigured_() {
-  return !!SPREADSHEET_ID_ && SPREADSHEET_ID_ !== 'YOUR_SPREADSHEET_ID';
+  return !!ROSTER_SPREADSHEET_ID_ && ROSTER_SPREADSHEET_ID_ !== 'YOUR_ROSTER_SPREADSHEET_ID';
 }
 
 function getRosterSheet_() {
-  const ss = openMainSpreadsheet_();
+  const ss = openRosterSpreadsheet_();
   const sheet = ROSTER_SHEET_NAME_ ? ss.getSheetByName(ROSTER_SHEET_NAME_) : ss.getSheets()[0];
   if (!sheet) throw new Error('找不到指定的名冊工作表（ROSTER_SHEET_NAME_）。');
   return sheet;
@@ -85,7 +85,7 @@ function compareRosterStudents_(a, b) {
 
 function getRosterDistinctClasses_() {
   try {
-    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（SPREADSHEET_ID_）。', classes: [] };
+    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（ROSTER_SPREADSHEET_ID_）。', classes: [] };
 
     const cache = CacheService.getScriptCache();
     const cacheKey = `roster:v${ROSTER_CACHE_VERSION_}:classes`;
@@ -118,7 +118,7 @@ function getRosterStudentsByClass_(className) {
   try {
     const c = String(className || '').trim();
     if (!c) return { ok: true, students: [] };
-    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（SPREADSHEET_ID_）。' };
+    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（ROSTER_SPREADSHEET_ID_）。' };
 
     const cache = CacheService.getScriptCache();
     const cacheKey = `roster:v${ROSTER_CACHE_VERSION_}:class:${c}`;
@@ -152,7 +152,7 @@ function lookupRosterStudentById_(studentId) {
   try {
     const sid = String(studentId || '').trim();
     if (!sid) return { ok: true, student: null };
-    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（SPREADSHEET_ID_）。' };
+    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（ROSTER_SPREADSHEET_ID_）。' };
 
     const cache = CacheService.getScriptCache();
     const cacheKey = `roster:v${ROSTER_CACHE_VERSION_}:studentId:${sid}`;
@@ -208,7 +208,7 @@ function lookupRosterStudentByClassAndId_(className, studentId) {
     const c = String(className || '').trim();
     const sid = String(studentId || '').trim();
     if (!sid) return { ok: true, student: null };
-    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（SPREADSHEET_ID_）。' };
+    if (!isRosterConfigured_()) return { ok: false, error: '尚未設定試算表 ID（ROSTER_SPREADSHEET_ID_）。' };
     if (!c) return lookupRosterStudentById_(sid);
 
     const cache = CacheService.getScriptCache();

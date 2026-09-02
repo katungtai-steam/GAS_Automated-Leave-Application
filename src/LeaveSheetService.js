@@ -34,7 +34,7 @@ function trySpreadsheetBulletLine_() {
 function appendLeaveToSheet_(data) {
   try {
     if (!SPREADSHEET_ID_ || SPREADSHEET_ID_ === 'YOUR_SPREADSHEET_ID') {
-      return { ok: false, error: '尚未設定 SPREADSHEET_ID_（請填入合併後試算表的 ID）。' };
+      return { ok: false, error: '尚未設定 SPREADSHEET_ID_（請填入請假紀錄試算表的 ID）。' };
     }
 
     const ss = openMainSpreadsheet_();

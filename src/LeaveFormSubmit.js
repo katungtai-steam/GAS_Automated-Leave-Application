@@ -73,7 +73,7 @@ function handleSubmitLeaveForm_(event) {
 
   const missing = [];
   if (!data.className) missing.push('班別');
-  if (!isRosterConfigured_()) missing.push('試算表設定（SPREADSHEET_ID_）');
+  if (!isRosterConfigured_()) missing.push('試算表設定（ROSTER_SPREADSHEET_ID_）');
   if (!String(data.studentKey || '').trim()) missing.push('學生（從名冊選取）');
   if (!data.studentId) missing.push('學號（從名冊選取）');
   if (!data.name) missing.push('姓名（從名冊選取）');

@@ -40,7 +40,7 @@ function handleSubmitWorkLogForm_(event) {
   } catch (e) {}
 
   const missing = [];
-  if (!isRosterConfigured_()) missing.push('試算表設定（SPREADSHEET_ID_）');
+  if (!isRosterConfigured_()) missing.push('試算表設定（ROSTER_SPREADSHEET_ID_）');
   if (!studentKeyRaw) missing.push('學生（從名冊選取）');
   if (!data.studentId || !data.name) missing.push('姓名/學號（名冊查詢）');
   if (!eventDescription) missing.push('事件描述');
