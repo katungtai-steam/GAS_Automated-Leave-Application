@@ -11,7 +11,17 @@
 
 ### 請假紀錄欄位（`LEAVE_SHEET_HEADERS_`）
 
-申請時間、班別、學號、姓名、請假類型、事假日期(開始)、事假日期(結束)、請假時間(開始)、請假時間(結束)、離校時間、原因、文件情況、批核者、請假單
+申請時間、班別、學號、姓名、請假類型、事假日期(開始)、事假日期(結束)、請假時間(開始)、請假時間(結束)、離校時間、原因、文件情況、批核者、請假單、已列印（O）
+
+「已列印」空白／非 `LEAVE_PRINTED_TRUE_VALUES_` → 未列印；上學天每日摘要會列出。
+
+## 上學天每日通知
+
+- 模組：`DailyDigestNotifyService.js`
+- 上學天：週一至週五，排除 `HK_PUBLIC_HOLIDAYS_`／`SCHOOL_EXTRA_NON_SCHOOL_DAYS_`
+- 內容：未列印事假（含事假日期）＋黃紙待跟進（列明班主任／級訓導／訓導主任）
+- 目標空間：`DAILY_DIGEST_CHAT_SPACE_NAME_` 或 Bot `onAddToSpace` 記住的 Script Property
+- 設定：編輯器執行一次 `setupDailySchoolDayDigestTrigger()`；測試用 `testDailySchoolDayDigest()`
 
 ### 名冊欄位（第一列標題）
 
@@ -88,23 +98,45 @@ Chat 觸發：主選單 →「工作記錄」，或輸入「工作記錄」，�
 
 備註潤飾：`YellowSlipGemini.js`（需 Script property `GEMINI_API_KEY`）
 
-Chat 觸發：主選單 →「黃紙跟進」，或輸入「黃紙」，或 `/黃紙`（Command ID 4）。
+Chat 觸發：主選單 →「黃紙跟進」，或輸入「黃紙」，或 `/黃紙`（Command ID 3）。
 
 ## Slash Commands（Google Chat API 設定）
 
-在 [Google Chat API → Configuration](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat) 新增：
+程式唯一來源：`ChatBotConfig.js` → `SLASH_COMMANDS_`（id / name / aliases / description / action）。
 
-| Command ID | 名稱（Name） | 說明 | 程式常數 |
-|------------|-------------|------|----------|
-| 1 | `/事假` | 開啟事假申請表單 | `SLASH_CMD_LEAVE_ID_` |
-| 2 | `/工作記錄` | 開啟工作記錄表單 | `SLASH_CMD_WORKLOG_ID_` |
-| 3 | `/選單` | 開啟主選單 | `SLASH_CMD_MENU_ID_` |
-| 4 | `/黃紙` | 開啟黃紙跟進 | `SLASH_CMD_YELLOW_SLIP_ID_` |
+### Console 應登記的 4 筆（勿把別名建成獨立指令）
 
-**Name 必須以 `/` 開頭**（例如 `/事假`）。Command type 選 **Slash command**。
-Command ID 須與 `ChatBotConfig.js` 一致。另支援別名：`leave`/`請假`、`worklog`/`違規`、`yellowslip`/`黃紙跟進`、`menu`/`help`。
+| Command ID | Name（須含 `/`） | Description | action |
+|------------|------------------|-------------|--------|
+| 1 | `/事假` | 開啟事假申請表單 | leave |
+| 2 | `/工作記錄` | 開啟工作記錄表單 | worklog |
+| 3 | `/黃紙` | 開啟黃紙跟進 | yellow |
+| 4 | `/選單` | 開啟主選單 | menu |
 
-儲存設定後重新部署 Chat App，在聊天室輸入 `/事假` 或 `/工作記錄` 測試。
+別名（不必登記 Console）：`leave`/`請假`、`worklog`/`違規`、`menu`/`help`/`幫助`、`yellowslip`/`黃紙跟進`。
+
+### 重新設定步驟
+
+1. 開啟 [Google Cloud Console → Google Chat API → Configuration](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat)（選對專案）。
+2. 找到 **Commands**（或「Slash commands」）區塊。
+3. **刪除**舊的／重複的指令（錯誤 ID、英文別名當獨立指令、多餘項目）。
+4. **新增**上表 4 筆，欄位對齊：
+   - **Command ID** = 整數 `1` / `2` / `3` / `4`
+   - **Name** = `/事假` 等（**必須以 `/` 開頭**）
+   - **Description** = 上表說明
+   - **Command type** = **Slash command**（不要選 Quick command，除非你有意改架構）
+5. 頁面最下方按 **Save**。
+6. 若使用「部署為 Chat App」：到 Apps Script → **部署** → 確認 Chat 用的是最新版本（或新建版本再掛上）。
+7. 在 Google Chat 空間輸入 `/`，應只看到上述 4 個建議；再測 `/事假`、`/工作記錄`、`/黃紙`、`/選單`。
+
+### 常見問題
+
+| 症狀 | 原因／處理 |
+|------|------------|
+| `/事假` 回「未知的 slash command」 | Console 的 Command ID ≠ 程式 `SLASH_COMMANDS_.id`；對齊後 Save |
+| 輸入 `/` 出現一堆舊指令 | Console 有殘留指令；刪除後只留 4 筆 |
+| 有時走 `onMessage`、有時走 `onAppCommand` | 正常；兩者都經 `SlashCommandRouter.js` |
+| 改了程式沒反應 | `npm run push` 後重新部署 Chat App／硬重新整理 Chat |
 
 ---
 

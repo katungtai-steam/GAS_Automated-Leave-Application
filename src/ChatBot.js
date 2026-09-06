@@ -13,6 +13,7 @@ function buildUpdateMessageResponse_(cardPayload) {
 function onMessage(event) {
   try {
     const ev = augmentEventForHandlers_(event);
+    maybeRememberDigestSpaceFromEvent_(ev);
     console.info('onMessage', usesNewChatEventFormat_(event) ? 'new-format' : 'legacy');
 
     if (hasImageAttachment_(ev)) {
@@ -24,6 +25,9 @@ function onMessage(event) {
 
     const text = String((ev.message && ev.message.text) || '').trim();
     if (!text) return wrapChatBotResponse_(event, { text: '我目前只處理文字訊息。' });
+    if (/^(設定每日提醒|設定通知空間|set.?digest)$/i.test(text)) {
+      return wrapChatBotResponse_(event, handleSetDailyDigestSpaceCommand_(ev));
+    }
     if (/^(工作記錄|worklog|違規)$/i.test(text)) return wrapChatBotResponse_(event, buildWorkLogFormCard_());
     if (/^(請假|leave|事假)$/i.test(text)) return wrapChatBotResponse_(event, buildLeaveFormCard_());
     if (/^(黃紙|黃紙跟進|yellowslip)$/i.test(text)) return wrapChatBotResponse_(event, buildYellowSlipFormCard_());
@@ -59,6 +63,7 @@ function onAppCommand(event) {
 function onCardClick(event) {
   try {
     const ev = augmentEventForHandlers_(event);
+    maybeRememberDigestSpaceFromEvent_(ev);
     const invoked =
       (ev.common && ev.common.invokedFunction) ||
       (ev.action && (ev.action.actionMethodName || ev.action.actionMethod)) ||
@@ -92,11 +97,15 @@ function onAddToSpace(event) {
   try {
     const ev = augmentEventForHandlers_(event);
     const spaceName = (ev.space && (ev.space.displayName || ev.space.name)) || '此對話';
+    const spaceId = (ev.space && ev.space.name) || '';
+    rememberDailyDigestChatSpace_(spaceId, { force: true });
     const who = (ev.user && ev.user.displayName) || '同學';
     return wrapChatBotResponse_(event, {
       text:
         `已加入：${spaceName}\n` +
-        `你好 ${who}！我可以協助「事假申請」、「工作記錄」與「黃紙跟進」。\n\n` +
+        `你好 ${who}！我可以協助「事假申請」、「工作記錄」與「黃紙跟進」。\n` +
+        (spaceId ? `（已記住此空間作上學天每日提醒）\n` : '') +
+        `\n` +
         getSlashCommandHelpText_(),
     });
   } catch (err) {

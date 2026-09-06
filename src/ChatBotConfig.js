@@ -28,7 +28,10 @@ const LEAVE_SHEET_HEADERS_ = [
   '文件情況',
   '批核者',
   '請假單',
+  '已列印', // O 欄：手動標記是否已列印請假表
 ];
+/** 「已列印」欄視為已完成列印的值（其餘／空白＝未列印） */
+const LEAVE_PRINTED_TRUE_VALUES_ = ['是', 'Y', 'y', '✓', '✔', '已列印', 'TRUE', 'true', '1'];
 
 /**
  * Google Doc 請假單範本：Drive 檔案 ID（網址 /document/d/<ID>/edit）；副本資料夾 ID 可選。
@@ -137,15 +140,48 @@ const WORK_LOG_SHEET_HEADERS_ = [
 const WORK_LOG_DEFAULT_FOLLOW_UP_STATUS_ = '待跟進';
 const WORK_LOG_NEED_EMAIL_OPTIONS_ = ['是', '否'];
 
-/** Slash commands：請在 Google Chat API 設定相同 Command ID 與名稱 */
-const SLASH_CMD_LEAVE_ID_ = 1;
-const SLASH_CMD_WORKLOG_ID_ = 2;
-const SLASH_CMD_MENU_ID_ = 3;
-const SLASH_CMD_YELLOW_SLIP_ID_ = 4;
-const SLASH_CMD_LEAVE_NAMES_ = ['leave', '事假', '請假'];
-const SLASH_CMD_WORKLOG_NAMES_ = ['worklog', '工作記錄', '違規'];
-const SLASH_CMD_MENU_NAMES_ = ['menu', '選單', 'help', '幫助'];
-const SLASH_CMD_YELLOW_SLIP_NAMES_ = ['yellowslip', '黃紙', '黃紙跟進'];
+/**
+ * Slash commands 唯一來源（請與 Google Chat API → Configuration 一致）
+ *
+ * - id：Console 的 Command ID（整數）
+ * - name：Console 的 Name（不含前導 `/`；Console 填寫時要加 `/`）
+ * - aliases：程式另接受的別名（文字 `/別名` 或 commandName）；不必在 Console 再登記
+ * - description：說明文字（可填到 Console Description）
+ * - action：路由鍵（leave | worklog | yellow | menu）
+ *
+ * Console 請只建下列 4 筆（不要建別名當獨立指令，以免 ID 對不上）：
+ *   1 → /事假 、 2 → /工作記錄 、 3 → /黃紙 、 4 → /選單
+ */
+const SLASH_COMMANDS_ = [
+  {
+    id: 1,
+    name: '事假',
+    aliases: ['leave', '請假'],
+    description: '開啟事假申請表單',
+    action: 'leave',
+  },
+  {
+    id: 2,
+    name: '工作記錄',
+    aliases: ['worklog', '違規'],
+    description: '開啟工作記錄表單',
+    action: 'worklog',
+  },
+  {
+    id: 3,
+    name: '黃紙',
+    aliases: ['yellowslip', '黃紙跟進'],
+    description: '開啟黃紙跟進',
+    action: 'yellow',
+  },
+  {
+    id: 4,
+    name: '選單',
+    aliases: ['menu', 'help', '幫助'],
+    description: '開啟主選單',
+    action: 'menu',
+  },
+];
 /** Script Properties 中的 Gemini API Key 名稱（勿寫死在程式碼） */
 const GEMINI_API_KEY_PROPERTY_ = 'GEMINI_API_KEY';
 const GEMINI_MODEL_ = 'gemini-3.6-flash';
@@ -200,11 +236,83 @@ const YELLOW_SLIP_GRADE_DISCIPLINE_OPTIONS_ = [
   '已跟進',
   '已完結',
 ];
-/** 篩選：全部／待級訓導跟進（級訓導欄空白） */
+/** 篩選：全部／待級訓導跟進／任一角色待跟進 */
 const YELLOW_SLIP_FILTER_ALL_ = 'all';
 const YELLOW_SLIP_FILTER_PENDING_GRADE_ = 'pending_grade';
+const YELLOW_SLIP_FILTER_PENDING_ANY_ = 'pending_any';
 
 /** 開啟黃紙紀錄試算表 */
 function openYellowSlipSpreadsheet_() {
   return SpreadsheetApp.openById(YELLOW_SLIP_SPREADSHEET_ID_);
 }
+
+// --- 每天通知（上學天 Digest → Google Chat）---
+/**
+ * 通知目標空間 name（例如 spaces/AAAA...）。
+ * 留空則使用 Script Properties「DAILY_DIGEST_CHAT_SPACE」
+ * （Bot 加入空間、或在空間內說「設定每日提醒」時會寫入）。
+ *
+ * 更簡易：在 Chat 空間建立 Incoming webhook，把 URL 填到
+ * DAILY_DIGEST_CHAT_WEBHOOK_URL_（或 Script Property DAILY_DIGEST_CHAT_WEBHOOK）。
+ */
+const DAILY_DIGEST_CHAT_SPACE_NAME_ = '';
+/** Incoming Webhook URL（優先於空間 ID；留空則改用 Chat API + 空間） */
+const DAILY_DIGEST_CHAT_WEBHOOK_URL_ =
+  'https://chat.googleapis.com/v1/spaces/AAQAnqcLNHc/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=vL1o0DpONsTq-nh7GTD2xEEbQ-QBWiZhimdu7toYe4I';
+/** Script Properties key：記住的 Chat 空間 */
+const DAILY_DIGEST_CHAT_SPACE_PROP_ = 'DAILY_DIGEST_CHAT_SPACE';
+/** Script Properties key：Webhook URL */
+const DAILY_DIGEST_CHAT_WEBHOOK_PROP_ = 'DAILY_DIGEST_CHAT_WEBHOOK';
+/** 是否啟用每天通知 */
+const DAILY_DIGEST_ENABLED_ = true;
+/** 觸發小時（Asia/Hong_Kong，0–23） */
+const DAILY_DIGEST_HOUR_ = 8;
+/** 摘要最多列出幾筆未列印事假／待跟進黃紙 */
+const DAILY_DIGEST_MAX_LEAVE_ITEMS_ = 25;
+const DAILY_DIGEST_MAX_YELLOW_ITEMS_ = 25;
+/**
+ * 香港公眾假期（yyyy-MM-dd）。上學天 = 週一至週五且不在此清單。
+ * 可按學年增補；亦可在 Extra 陣列加入學校假期。
+ */
+const HK_PUBLIC_HOLIDAYS_ = [
+  // 2026
+  '2026-01-01',
+  '2026-02-17',
+  '2026-02-18',
+  '2026-02-19',
+  '2026-04-03',
+  '2026-04-04',
+  '2026-04-06',
+  '2026-04-07',
+  '2026-05-01',
+  '2026-05-25',
+  '2026-06-19',
+  '2026-07-01',
+  '2026-09-26',
+  '2026-10-01',
+  '2026-10-19',
+  '2026-12-25',
+  '2026-12-26',
+  // 2027
+  '2027-01-01',
+  '2027-02-06',
+  '2027-02-08',
+  '2027-02-09',
+  '2027-03-26',
+  '2027-03-27',
+  '2027-03-29',
+  '2027-04-05',
+  '2027-05-01',
+  '2027-05-13',
+  '2027-06-09',
+  '2027-07-01',
+  '2027-09-16',
+  '2027-10-01',
+  '2027-10-08',
+  '2027-12-25',
+  '2027-12-27',
+];
+/** 額外非上學日（學校假期等），格式 yyyy-MM-dd */
+const SCHOOL_EXTRA_NON_SCHOOL_DAYS_ = [];
+/** 級訓導欄視為「尚未處理」的值 */
+const YELLOW_SLIP_PENDING_GRADE_VALUES_ = ['', '未跟進'];

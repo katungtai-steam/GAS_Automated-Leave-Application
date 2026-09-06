@@ -54,11 +54,41 @@ function rowToYellowSlipRecord_(rowValues, sheetRow) {
 }
 
 function isYellowSlipPendingGrade_(record) {
-  return !String((record && record.gradeDiscipline) || '').trim();
+  const t = String((record && record.gradeDiscipline) || '').trim();
+  const pendingValues = YELLOW_SLIP_PENDING_GRADE_VALUES_ || ['', '未跟進'];
+  for (let i = 0; i < pendingValues.length; i++) {
+    if (t === String(pendingValues[i] || '').trim()) return true;
+  }
+  return false;
+}
+
+function isYellowSlipPendingClassTeacher_(record) {
+  return !String((record && record.classTeacher) || '').trim();
+}
+
+function isYellowSlipPendingDisciplineMaster_(record) {
+  return !String((record && record.disciplineMaster) || '').trim();
+}
+
+/** 任一角色未處理即視為需跟進 */
+function isYellowSlipNeedsFollowUp_(record) {
+  return (
+    isYellowSlipPendingClassTeacher_(record) ||
+    isYellowSlipPendingGrade_(record) ||
+    isYellowSlipPendingDisciplineMaster_(record)
+  );
+}
+
+function describeYellowSlipPendingRoles_(record) {
+  const parts = [];
+  if (isYellowSlipPendingClassTeacher_(record)) parts.push('班主任');
+  if (isYellowSlipPendingGrade_(record)) parts.push('級訓導');
+  if (isYellowSlipPendingDisciplineMaster_(record)) parts.push('訓導主任');
+  return parts;
 }
 
 /**
- * 讀取黃紙紀錄（可依班別／待級訓導跟進篩選）
+ * 讀取黃紙紀錄（可依班別／待級訓導跟進／任一角色待跟進篩選）
  * @returns {{ ok: boolean, error?: string, records?: Array, truncated?: boolean, totalMatched?: number }}
  */
 function listYellowSlipRecords_(options) {
@@ -84,6 +114,7 @@ function listYellowSlipRecords_(options) {
       if (!rec.className && !rec.name && !rec.dateTime) continue;
       if (classFilter && normalizeYellowSlipClassName_(rec.className) !== classFilter) continue;
       if (filterMode === YELLOW_SLIP_FILTER_PENDING_GRADE_ && !isYellowSlipPendingGrade_(rec)) continue;
+      if (filterMode === YELLOW_SLIP_FILTER_PENDING_ANY_ && !isYellowSlipNeedsFollowUp_(rec)) continue;
       matched.push(rec);
     }
 

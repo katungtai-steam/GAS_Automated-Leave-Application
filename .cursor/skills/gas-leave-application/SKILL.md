@@ -47,6 +47,7 @@ clasp status    # 應列出 src/ 下 10 個檔案
 | `YellowSlipFormCard.js` | 黃紙跟進卡片（檢索 + 級訓導跟進） |
 | `YellowSlipFormSubmit.js` | 級訓導跟進送出 |
 | `YellowSlipGemini.js` | Gemini：備註草稿潤飾 |
+| `DailyDigestNotifyService.js` | 上學天每日摘要：未列印事假＋待跟進黃紙 → Google Chat |
 | `SlashCommandRouter.js` | Slash command 路由 |
 
 ## 開發慣例
@@ -61,7 +62,7 @@ clasp status    # 應列出 src/ 下 10 個檔案
 
 ```
 onMessage → handleSlashCommand_ 或文字關鍵字 或 buildMainMenuCard_
-Slash: /事假 /工作記錄 /黃紙 /選單（Command ID 1/2/4/3，見 reference.md）
+Slash: /事假 /工作記錄 /黃紙 /選單（ID 1/2/3/4，見 `SLASH_COMMANDS_`）
 onCardClick → invokedFunction: ...
 ```
 

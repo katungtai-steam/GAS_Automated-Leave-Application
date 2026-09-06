@@ -1,5 +1,6 @@
 /**
  * Google Chat Slash Command 路由（SlashCommandRouter.js）
+ * 指令定義見 ChatBotConfig.js → SLASH_COMMANDS_
  */
 
 function slashCommandIdMatches_(commandId, expectedId) {
@@ -28,13 +29,40 @@ function normalizeSlashCommandName_(raw) {
     .toLowerCase();
 }
 
-function slashNameMatchesList_(name, list) {
-  const n = normalizeSlashCommandName_(name);
-  if (!n) return false;
-  for (let i = 0; i < list.length; i++) {
-    if (n === normalizeSlashCommandName_(list[i])) return true;
+function getSlashCommandNameKeys_(cmd) {
+  const keys = [cmd.name].concat(Array.isArray(cmd.aliases) ? cmd.aliases : []);
+  const out = [];
+  for (let i = 0; i < keys.length; i++) {
+    const n = normalizeSlashCommandName_(keys[i]);
+    if (n) out.push(n);
   }
-  return false;
+  return out;
+}
+
+function findSlashCommandDef_(commandId, commandName) {
+  const defs = Array.isArray(SLASH_COMMANDS_) ? SLASH_COMMANDS_ : [];
+  const nameKey = normalizeSlashCommandName_(commandName);
+
+  for (let i = 0; i < defs.length; i++) {
+    const cmd = defs[i];
+    if (slashCommandIdMatches_(commandId, cmd.id)) return cmd;
+  }
+  if (!nameKey) return null;
+  for (let i = 0; i < defs.length; i++) {
+    const keys = getSlashCommandNameKeys_(defs[i]);
+    for (let j = 0; j < keys.length; j++) {
+      if (keys[j] === nameKey) return defs[i];
+    }
+  }
+  return null;
+}
+
+function buildSlashCommandCard_(action) {
+  if (action === 'leave') return buildLeaveFormCard_();
+  if (action === 'worklog') return buildWorkLogFormCard_();
+  if (action === 'yellow') return buildYellowSlipFormCard_();
+  if (action === 'menu') return buildMainMenuCard_();
+  return null;
 }
 
 function parseSlashCommandFromText_(text) {
@@ -45,40 +73,17 @@ function parseSlashCommandFromText_(text) {
 }
 
 function routeSlashCommandByIdOrName_(commandId, commandName) {
-  if (
-    slashCommandIdMatches_(commandId, SLASH_CMD_LEAVE_ID_) ||
-    slashNameMatchesList_(commandName, SLASH_CMD_LEAVE_NAMES_)
-  ) {
-    return buildLeaveFormCard_();
-  }
-  if (
-    slashCommandIdMatches_(commandId, SLASH_CMD_WORKLOG_ID_) ||
-    slashNameMatchesList_(commandName, SLASH_CMD_WORKLOG_NAMES_)
-  ) {
-    return buildWorkLogFormCard_();
-  }
-  if (
-    slashCommandIdMatches_(commandId, SLASH_CMD_YELLOW_SLIP_ID_) ||
-    slashNameMatchesList_(commandName, SLASH_CMD_YELLOW_SLIP_NAMES_)
-  ) {
-    return buildYellowSlipFormCard_();
-  }
-  if (
-    slashCommandIdMatches_(commandId, SLASH_CMD_MENU_ID_) ||
-    slashNameMatchesList_(commandName, SLASH_CMD_MENU_NAMES_)
-  ) {
-    return buildMainMenuCard_();
+  const def = findSlashCommandDef_(commandId, commandName);
+  if (def) {
+    const card = buildSlashCommandCard_(def.action);
+    if (card) return card;
   }
   return {
     text:
       '未知的 slash command（commandId=' +
       String(commandId) +
       '）。\n\n' +
-      '可用指令：\n' +
-      '- `/事假` — 事假申請\n' +
-      '- `/工作記錄` — 工作記錄\n' +
-      '- `/黃紙` — 黃紙跟進\n' +
-      '- `/選單` — 主選單',
+      getSlashCommandHelpText_(),
   };
 }
 
@@ -106,11 +111,11 @@ function handleAppCommandEvent_(event) {
 }
 
 function getSlashCommandHelpText_() {
-  return (
-    '可用 slash command：\n' +
-    '- `/事假` — 開啟事假申請表單\n' +
-    '- `/工作記錄` — 開啟工作記錄表單\n' +
-    '- `/黃紙` — 開啟黃紙跟進\n' +
-    '- `/選單` — 開啟主選單'
-  );
+  const defs = Array.isArray(SLASH_COMMANDS_) ? SLASH_COMMANDS_ : [];
+  const lines = ['可用指令：'];
+  for (let i = 0; i < defs.length; i++) {
+    const cmd = defs[i];
+    lines.push('- `/' + cmd.name + '` — ' + (cmd.description || cmd.name));
+  }
+  return lines.join('\n');
 }
