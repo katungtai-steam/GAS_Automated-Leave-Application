@@ -255,7 +255,7 @@ function openYellowSlipSpreadsheet_() {
  * 更簡易：在 Chat 空間建立 Incoming webhook，把 URL 填到
  * DAILY_DIGEST_CHAT_WEBHOOK_URL_（或 Script Property DAILY_DIGEST_CHAT_WEBHOOK）。
  */
-const DAILY_DIGEST_CHAT_SPACE_NAME_ = '';
+const DAILY_DIGEST_CHAT_SPACE_NAME_ = 'spaces/AAQAnqcLNHc';
 /** Incoming Webhook URL（優先於空間 ID；留空則改用 Chat API + 空間） */
 const DAILY_DIGEST_CHAT_WEBHOOK_URL_ =
   'https://chat.googleapis.com/v1/spaces/AAQAnqcLNHc/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=vL1o0DpONsTq-nh7GTD2xEEbQ-QBWiZhimdu7toYe4I';

@@ -263,46 +263,53 @@ function sendGoogleChatTextMessage_(spaceName, text) {
 
 function buildUnprintedLeaveDigestSection_(leaveResult) {
   const lines = [];
-  lines.push('【事假申請｜未列印】');
+  lines.push('*一、事假申請（未列印）*');
   if (!leaveResult || !leaveResult.ok) {
-    lines.push('- 讀取失敗：' + ((leaveResult && leaveResult.error) || '未知錯誤'));
+    lines.push('讀取失敗：' + ((leaveResult && leaveResult.error) || '未知錯誤'));
     return lines.join('\n');
   }
   const total = Number(leaveResult.totalMatched) || 0;
   if (!total) {
-    lines.push('- 目前沒有未列印的事假申請。');
+    lines.push('無');
     return lines.join('\n');
   }
 
-  lines.push('- 共 ' + total + ' 筆需列印／處理：');
+  lines.push('共 *' + total + '* 筆');
+  lines.push('');
   const records = leaveResult.records || [];
   for (let i = 0; i < records.length; i++) {
     const r = records[i];
     const who = [r.className, r.studentId, r.name].filter(Boolean).join(' ');
-    const bits = [];
-    bits.push(who || '（學生未填）');
-    bits.push('事假日期：' + (r.leaveDateText || '（未填）'));
-    if (r.leaveType) bits.push(r.leaveType);
-    if (r.reason) bits.push('原因：' + r.reason);
-    if (r.documentStatus) bits.push('文件：' + r.documentStatus);
-    lines.push((i + 1) + '. ' + bits.join('｜'));
+    lines.push('*' + (i + 1) + '. ' + (who || '（學生未填）') + '*');
+    lines.push('　事假日期：' + (r.leaveDateText || '（未填）'));
+    if (r.leaveType) lines.push('　類型：' + r.leaveType);
+    if (r.reason) lines.push('　原因：' + r.reason);
+    if (r.documentStatus) lines.push('　文件：' + r.documentStatus);
+    if (i < records.length - 1) lines.push('');
   }
   if (leaveResult.truncated) {
-    lines.push('…尚有 ' + (total - records.length) + ' 筆未列出（請開試算表查看）。');
+    lines.push('');
+    lines.push('（尚有 ' + (total - records.length) + ' 筆未列出，請開試算表）');
   }
   return lines.join('\n');
 }
 
+function formatYellowSlipRoleStatusLine_(label, value, isPending) {
+  if (isPending) return '　' + label + '：待處理';
+  const v = String(value || '').trim();
+  return '　' + label + '：' + (v || '—');
+}
+
 function buildPendingYellowSlipDigestSection_(yellowResult) {
   const lines = [];
-  lines.push('【黃紙紀錄｜待跟進】');
+  lines.push('*二、黃紙紀錄（待跟進）*');
   if (!yellowResult || !yellowResult.ok) {
-    lines.push('- 讀取失敗：' + ((yellowResult && yellowResult.error) || '未知錯誤'));
+    lines.push('讀取失敗：' + ((yellowResult && yellowResult.error) || '未知錯誤'));
     return lines.join('\n');
   }
   const total = Number(yellowResult.totalMatched) || 0;
   if (!total) {
-    lines.push('- 目前沒有待跟進的黃紙紀錄。');
+    lines.push('無');
     return lines.join('\n');
   }
 
@@ -317,38 +324,44 @@ function buildPendingYellowSlipDigestSection_(yellowResult) {
     if (roles.indexOf('訓導主任') !== -1) pendingMaster++;
   }
 
+  lines.push('共 *' + total + '* 筆（本訊息列 ' + records.length + ' 筆）');
   lines.push(
-    '- 共 ' +
-      total +
-      ' 筆待跟進（本摘要列 ' +
-      records.length +
-      ' 筆）｜待班主任 ' +
+    '待處理統計：班主任 ' +
       pendingClassTeacher +
-      '／待級訓導 ' +
+      '　｜　級訓導 ' +
       pendingGrade +
-      '／待訓導主任 ' +
+      '　｜　訓導主任 ' +
       pendingMaster
   );
+  lines.push('');
 
   for (let j = 0; j < records.length; j++) {
     const r = records[j];
     const pendingRoles = describeYellowSlipPendingRoles_(r);
     const who = [r.className, r.classNo, r.name].filter(Boolean).join(' ');
-    const bits = [];
-    bits.push(who || '（學生未填）');
-    if (r.dateTime) bits.push('時間：' + r.dateTime);
-    if (r.itemTaken) bits.push('項目：' + r.itemTaken);
-    if (r.by) bits.push('登記：' + r.by);
-    bits.push('未處理：' + (pendingRoles.length ? pendingRoles.join('、') : '（無）'));
-    const statusBits = [];
-    statusBits.push('班主任=' + (r.classTeacher || '空白'));
-    statusBits.push('級訓導=' + (r.gradeDiscipline || '空白'));
-    statusBits.push('訓導主任=' + (r.disciplineMaster || '空白'));
-    bits.push('現況：' + statusBits.join('；'));
-    lines.push(j + 1 + '. ' + bits.join('｜'));
+    lines.push('*' + (j + 1) + '. ' + (who || '（學生未填）') + '*');
+    if (r.dateTime) lines.push('　時間：' + r.dateTime);
+    if (r.itemTaken) lines.push('　項目：' + r.itemTaken);
+    if (r.by) lines.push('　登記：' + r.by);
+    lines.push('　*待處理：' + (pendingRoles.length ? pendingRoles.join('、') : '無') + '*');
+    lines.push(
+      formatYellowSlipRoleStatusLine_('班主任', r.classTeacher, pendingRoles.indexOf('班主任') !== -1)
+    );
+    lines.push(
+      formatYellowSlipRoleStatusLine_('級訓導', r.gradeDiscipline, pendingRoles.indexOf('級訓導') !== -1)
+    );
+    lines.push(
+      formatYellowSlipRoleStatusLine_(
+        '訓導主任',
+        r.disciplineMaster,
+        pendingRoles.indexOf('訓導主任') !== -1
+      )
+    );
+    if (j < records.length - 1) lines.push('');
   }
   if (yellowResult.truncated) {
-    lines.push('…尚有 ' + (total - records.length) + ' 筆未列出（請開黃紙試算表查看）。');
+    lines.push('');
+    lines.push('（尚有 ' + (total - records.length) + ' 筆未列出，請開黃紙試算表）');
   }
   return lines.join('\n');
 }
@@ -361,18 +374,29 @@ function buildDailySchoolDayDigestText_(options) {
     maxList: DAILY_DIGEST_MAX_YELLOW_ITEMS_,
   });
 
+  const leaveCount = leaveResult && leaveResult.ok ? Number(leaveResult.totalMatched) || 0 : -1;
+  const yellowCount = yellowResult && yellowResult.ok ? Number(yellowResult.totalMatched) || 0 : -1;
+
   const parts = [];
-  parts.push('上學天每日提醒｜' + formatDigestDisplayDate_(now));
+  parts.push('*上學天每日提醒*');
+  parts.push(formatDigestDisplayDate_(now));
+  parts.push('');
+  parts.push('———— 今日摘要 ————');
+  parts.push(
+    '事假未列印：' + (leaveCount < 0 ? '讀取失敗' : leaveCount + ' 筆')
+  );
+  parts.push(
+    '黃紙待跟進：' + (yellowCount < 0 ? '讀取失敗' : yellowCount + ' 筆')
+  );
+  parts.push('————————————');
   parts.push('');
   parts.push(buildUnprintedLeaveDigestSection_(leaveResult));
   parts.push('');
   parts.push(buildPendingYellowSlipDigestSection_(yellowResult));
 
-  const leaveCount = leaveResult && leaveResult.ok ? Number(leaveResult.totalMatched) || 0 : -1;
-  const yellowCount = yellowResult && yellowResult.ok ? Number(yellowResult.totalMatched) || 0 : -1;
   if (leaveCount === 0 && yellowCount === 0) {
     parts.push('');
-    parts.push('今日無需特別處理的待辦（未列印事假／待跟進黃紙皆為 0）。');
+    parts.push('今日無需特別處理。');
   }
 
   return {
