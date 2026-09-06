@@ -6,8 +6,7 @@
   "scripts": {
     "push": "clasp push",
     "pull": "clasp pull",
-    "open": "clasp open-script",
-    "sync-uniform": "clasp run-function syncUniformRecordsToClassSheets"
+    "open": "clasp open-script"
   },
   "repository": {
     "type": "git",

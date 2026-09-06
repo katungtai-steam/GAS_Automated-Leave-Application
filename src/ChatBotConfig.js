@@ -117,7 +117,7 @@ function buildClassOptions_(gradeCount, classLetters) {
 }
 
 // --- 工作記錄（Work Log）---
-/** 工作記錄專用試算表 ID（與請假/名冊/校服儀容分開） */
+/** 工作記錄專用試算表 ID（與請假/名冊分開） */
 const WORK_LOG_SPREADSHEET_ID_ = '1h33T3VRMaD0_4x_dLsXWpyH26w0AUYgFqPewf3N7xnU';
 /** 工作表名稱；留空則用試算表第一個工作表（gid=0） */
 const WORK_LOG_SHEET_NAME_ = '';
@@ -141,9 +141,11 @@ const WORK_LOG_NEED_EMAIL_OPTIONS_ = ['是', '否'];
 const SLASH_CMD_LEAVE_ID_ = 1;
 const SLASH_CMD_WORKLOG_ID_ = 2;
 const SLASH_CMD_MENU_ID_ = 3;
+const SLASH_CMD_YELLOW_SLIP_ID_ = 4;
 const SLASH_CMD_LEAVE_NAMES_ = ['leave', '事假', '請假'];
 const SLASH_CMD_WORKLOG_NAMES_ = ['worklog', '工作記錄', '違規'];
 const SLASH_CMD_MENU_NAMES_ = ['menu', '選單', 'help', '幫助'];
+const SLASH_CMD_YELLOW_SLIP_NAMES_ = ['yellowslip', '黃紙', '黃紙跟進'];
 /** Script Properties 中的 Gemini API Key 名稱（勿寫死在程式碼） */
 const GEMINI_API_KEY_PROPERTY_ = 'GEMINI_API_KEY';
 const GEMINI_MODEL_ = 'gemini-3.6-flash';
@@ -164,46 +166,45 @@ function openWorkLogSpreadsheet_() {
   return SpreadsheetApp.openById(WORK_LOG_SPREADSHEET_ID_);
 }
 
-// --- 校服儀容記錄（獨立於工作記錄；表單整合待後續開發）---
-/** 所有學生校服儀容總表試算表 ID */
-const UNIFORM_RECORD_SPREADSHEET_ID_ = '1uYBJ1J2RACFfuPOhHHoPlzm1uckBN1d5KLoY0XmH7D4';
-/** 依班別分流的校服儀容試算表（班別須與名冊 Class 一致，如 4A） */
-const UNIFORM_RECORD_CLASS_SPREADSHEET_IDS_ = {
-  '4A': '1g4nZTsu-Wrx4Vx4qwsGK2ahtKUTj6RyrzWvHmG5VnBQ',
-  '4B': '1-83ELE2E6Eq6ER6qEbRJr2VyfLe6XTrjEAkD_shg5SQ',
-  '4C': '1UNv34x4w0pL1S5N0jxJtKz1riblYzzVH1Ny7syMElN0',
-  '4D': '1Ylya5couK452_5BPWHEsAQP7LBCLdi5knah_jiyuJ-U',
+// --- 黃紙跟進（Yellow Slip）---
+/** 黃紙紀錄試算表 ID */
+const YELLOW_SLIP_SPREADSHEET_ID_ = '1yYWXMhqRdDKRzQgfopaTCC98sSXfylIJTzZ90_t-ulg';
+/** 工作表名稱；留空則用試算表第一個工作表（gid=0） */
+const YELLOW_SLIP_SHEET_NAME_ = '';
+/**
+ * A–F：黃紙紀錄；O–T：各角色跟進（角色欄 + 備註欄成對）
+ * 欄位索引為 0-based（對應試算表欄）
+ */
+const YELLOW_SLIP_COLS_ = {
+  className: 0, // A Class
+  classNo: 1, // B ClassNo
+  name: 2, // C Name
+  itemTaken: 3, // D ItemTaken
+  by: 4, // E By
+  dateTime: 5, // F DateTime
+  classTeacher: 14, // O 班主任
+  classTeacherRemark: 15, // P 備註
+  gradeDiscipline: 16, // Q 級訓導
+  gradeDisciplineRemark: 17, // R 備註
+  disciplineMaster: 18, // S 訓導主任
+  disciplineMasterRemark: 19, // T 備註
 };
-/** 工作表名稱；留空則用試算表第一個工作表 */
-const UNIFORM_RECORD_SHEET_NAME_ = '';
-const UNIFORM_RECORD_SHEET_HEADERS_ = [
-  '違規日期',
-  '違規時間',
-  '班別',
-  '學號',
-  '姓名',
-  '違規類型',
-  '改善時間',
+/** 讀取範圍最右欄（T = 20 欄） */
+const YELLOW_SLIP_LAST_COL_ = 20;
+/** 卡片一次最多列出幾筆黃紙 */
+const YELLOW_SLIP_MAX_LIST_ = 12;
+/** 級訓導跟進下拉選項（寫入「級訓導」欄） */
+const YELLOW_SLIP_GRADE_DISCIPLINE_OPTIONS_ = [
+  '未跟進',
+  '處理中',
+  '已跟進',
+  '已完結',
 ];
+/** 篩選：全部／待級訓導跟進（級訓導欄空白） */
+const YELLOW_SLIP_FILTER_ALL_ = 'all';
+const YELLOW_SLIP_FILTER_PENDING_GRADE_ = 'pending_grade';
 
-/** 開啟校服儀容總表試算表 */
-function openUniformRecordSpreadsheet_() {
-  return SpreadsheetApp.openById(UNIFORM_RECORD_SPREADSHEET_ID_);
+/** 開啟黃紙紀錄試算表 */
+function openYellowSlipSpreadsheet_() {
+  return SpreadsheetApp.openById(YELLOW_SLIP_SPREADSHEET_ID_);
 }
-
-// --- 班主任聯絡（校服儀容新記錄電郵通知）---
-/** 班主任 Gmail 聯絡表試算表 ID */
-const HOMEROOM_CONTACT_SPREADSHEET_ID_ = '1HRA6FgIy3ykEN9SLEWA55OmKNOQ1rErAEPjDDfUQ7Ag';
-/** 工作表名稱；留空則用第一個工作表 */
-const HOMEROOM_CONTACT_SHEET_NAME_ = '';
-/** 班主任聯絡表第一列標題（班別、Initial、姓名、gmail） */
-const HOMEROOM_CONTACT_HEADERS_ = {
-  className: '班別',
-  initial: 'Initial',
-  name: '姓名',
-  email: 'gmail',
-};
-const HOMEROOM_CONTACT_CACHE_TTL_SECONDS_ = 15 * 60;
-const HOMEROOM_CONTACT_CACHE_VERSION_ = 4;
-/** 各班試算表有新記錄時是否自動電郵班主任 */
-const UNIFORM_RECORD_NOTIFY_EMAIL_ENABLED_ = true;

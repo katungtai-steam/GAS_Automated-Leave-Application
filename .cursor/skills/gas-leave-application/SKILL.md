@@ -39,10 +39,14 @@ clasp status    # 應列出 src/ 下 10 個檔案
 | `RosterService.js` | 名冊讀取、快取、班別/學生下拉 |
 | `LeaveFormCard.js` | cardsV2 卡片 UI |
 | `LeaveFormSubmit.js` | 送出驗證、Doc 產生流程、圖片附件更新文件情況 |
-| `MainMenuCard.js` | 主選單（事假 / 工作記錄） |
+| `MainMenuCard.js` | 主選單（事假 / 工作記錄 / 黃紙跟進） |
 | `WorkLogFormCard.js` | 工作記錄卡片 UI |
 | `WorkLogFormSubmit.js` | 工作記錄送出（GAS 名冊 + Gemini 解析） |
 | `WorkLogGemini.js` | Gemini API：事件描述 → 違規類別/處理等級 |
+| `YellowSlipSheetService.js` | 黃紙試算表讀取／級訓導欄寫入 |
+| `YellowSlipFormCard.js` | 黃紙跟進卡片（檢索 + 級訓導跟進） |
+| `YellowSlipFormSubmit.js` | 級訓導跟進送出 |
+| `YellowSlipGemini.js` | Gemini：備註草稿潤飾 |
 | `SlashCommandRouter.js` | Slash command 路由 |
 
 ## 開發慣例
@@ -57,11 +61,13 @@ clasp status    # 應列出 src/ 下 10 個檔案
 
 ```
 onMessage → handleSlashCommand_ 或文字關鍵字 或 buildMainMenuCard_
-Slash: /事假 /工作記錄 /選單（Command ID 1/2/3，見 reference.md）
+Slash: /事假 /工作記錄 /黃紙 /選單（Command ID 1/2/4/3，見 reference.md）
 onCardClick → invokedFunction: ...
 ```
 
 工作記錄：姓名/班別僅 GAS 名冊；`wlEventDescription` 送出後才送 Gemini（Script property `GEMINI_API_KEY`）。
+
+黃紙跟進：試算表 A–F 黃紙、O–T 跟進；級訓導以下拉寫入 Q／選填備註寫入 R。
 
 請假類型 value：`day_slots` | `half_full_day` | `full_day_range`
 

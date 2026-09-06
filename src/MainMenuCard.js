@@ -26,6 +26,10 @@ function buildMainMenuCard_() {
                         text: '工作記錄',
                         onClick: { action: { function: 'openWorkLogForm' } },
                       },
+                      {
+                        text: '黃紙跟進',
+                        onClick: { action: { function: 'openYellowSlipForm' } },
+                      },
                     ],
                   },
                 },

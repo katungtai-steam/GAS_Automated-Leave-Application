@@ -26,6 +26,7 @@ function onMessage(event) {
     if (!text) return wrapChatBotResponse_(event, { text: '我目前只處理文字訊息。' });
     if (/^(工作記錄|worklog|違規)$/i.test(text)) return wrapChatBotResponse_(event, buildWorkLogFormCard_());
     if (/^(請假|leave|事假)$/i.test(text)) return wrapChatBotResponse_(event, buildLeaveFormCard_());
+    if (/^(黃紙|黃紙跟進|yellowslip)$/i.test(text)) return wrapChatBotResponse_(event, buildYellowSlipFormCard_());
     return wrapChatBotResponse_(event, buildMainMenuCard_());
   } catch (err) {
     console.error('onMessage error', err);
@@ -68,10 +69,15 @@ function onCardClick(event) {
     if (invoked === 'submitWorkLogForm') return handleSubmitWorkLogForm_(ev);
     if (invoked === 'refreshWorkLogForm') return buildUpdateMessageResponse_(buildWorkLogFormCard_(ev));
 
+    if (invoked === 'openYellowSlipForm') return buildYellowSlipFormCard_();
+    if (invoked === 'refreshYellowSlipForm') return buildUpdateMessageResponse_(buildYellowSlipFormCard_(ev));
+    if (invoked === 'submitYellowSlipGradeFollowUp') return handleSubmitYellowSlipGradeFollowUp_(ev);
+
     if (invoked === 'submitLeaveForm') return handleSubmitLeaveForm_(ev);
     if (invoked === 'openLeaveForm') return buildLeaveFormCard_();
     if (invoked === 'refreshLeaveForm') return buildUpdateMessageResponse_(buildLeaveFormCard_(ev));
 
+    if (isYellowSlipFormInputs_(ev)) return buildUpdateMessageResponse_(buildYellowSlipFormCard_(ev));
     if (isWorkLogFormInputs_(ev)) return buildUpdateMessageResponse_(buildWorkLogFormCard_(ev));
     if (hasMeaningfulFormInputs_(ev)) return buildUpdateMessageResponse_(buildLeaveFormCard_(ev));
 
@@ -90,7 +96,7 @@ function onAddToSpace(event) {
     return wrapChatBotResponse_(event, {
       text:
         `已加入：${spaceName}\n` +
-        `你好 ${who}！我可以協助「事假申請」與「工作記錄」。\n\n` +
+        `你好 ${who}！我可以協助「事假申請」、「工作記錄」與「黃紙跟進」。\n\n` +
         getSlashCommandHelpText_(),
     });
   } catch (err) {

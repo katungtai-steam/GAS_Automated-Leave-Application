@@ -73,6 +73,23 @@
 
 Chat 觸發：主選單 →「工作記錄」，或輸入「工作記錄」，或 `/工作記錄`。
 
+## 黃紙跟進（Yellow Slip）
+
+試算表：`YELLOW_SLIP_SPREADSHEET_ID_`（獨立）
+
+| 欄位 | 位置 | 用途 |
+|------|------|------|
+| Class, ClassNo, Name, ItemTaken, By, DateTime | A–F | 黃紙紀錄（顯示） |
+| 班主任, 備註, 級訓導, 備註, 訓導主任, 備註 | O–T | 各角色跟進（顯示／寫入） |
+
+級訓導流程：選班別 → 檢視紀錄 → 下拉選黃紙 → 下拉選跟進選項（寫入 Q）→ 選填備註（送出時 Gemini 潤飾後寫入 R）。
+
+跟進選項：`YELLOW_SLIP_GRADE_DISCIPLINE_OPTIONS_`（`ChatBotConfig.js`）
+
+備註潤飾：`YellowSlipGemini.js`（需 Script property `GEMINI_API_KEY`）
+
+Chat 觸發：主選單 →「黃紙跟進」，或輸入「黃紙」，或 `/黃紙`（Command ID 4）。
+
 ## Slash Commands（Google Chat API 設定）
 
 在 [Google Chat API → Configuration](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat) 新增：
@@ -82,9 +99,10 @@ Chat 觸發：主選單 →「工作記錄」，或輸入「工作記錄」，�
 | 1 | `/事假` | 開啟事假申請表單 | `SLASH_CMD_LEAVE_ID_` |
 | 2 | `/工作記錄` | 開啟工作記錄表單 | `SLASH_CMD_WORKLOG_ID_` |
 | 3 | `/選單` | 開啟主選單 | `SLASH_CMD_MENU_ID_` |
+| 4 | `/黃紙` | 開啟黃紙跟進 | `SLASH_CMD_YELLOW_SLIP_ID_` |
 
 **Name 必須以 `/` 開頭**（例如 `/事假`）。Command type 選 **Slash command**。
-Command ID 須與 `ChatBotConfig.js` 一致。另支援別名：`leave`/`請假`、`worklog`/`違規`、`menu`/`help`。
+Command ID 須與 `ChatBotConfig.js` 一致。另支援別名：`leave`/`請假`、`worklog`/`違規`、`yellowslip`/`黃紙跟進`、`menu`/`help`。
 
 儲存設定後重新部署 Chat App，在聊天室輸入 `/事假` 或 `/工作記錄` 測試。
 

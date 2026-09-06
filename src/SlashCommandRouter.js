@@ -58,6 +58,12 @@ function routeSlashCommandByIdOrName_(commandId, commandName) {
     return buildWorkLogFormCard_();
   }
   if (
+    slashCommandIdMatches_(commandId, SLASH_CMD_YELLOW_SLIP_ID_) ||
+    slashNameMatchesList_(commandName, SLASH_CMD_YELLOW_SLIP_NAMES_)
+  ) {
+    return buildYellowSlipFormCard_();
+  }
+  if (
     slashCommandIdMatches_(commandId, SLASH_CMD_MENU_ID_) ||
     slashNameMatchesList_(commandName, SLASH_CMD_MENU_NAMES_)
   ) {
@@ -71,6 +77,7 @@ function routeSlashCommandByIdOrName_(commandId, commandName) {
       '可用指令：\n' +
       '- `/事假` — 事假申請\n' +
       '- `/工作記錄` — 工作記錄\n' +
+      '- `/黃紙` — 黃紙跟進\n' +
       '- `/選單` — 主選單',
   };
 }
@@ -103,6 +110,7 @@ function getSlashCommandHelpText_() {
     '可用 slash command：\n' +
     '- `/事假` — 開啟事假申請表單\n' +
     '- `/工作記錄` — 開啟工作記錄表單\n' +
+    '- `/黃紙` — 開啟黃紙跟進\n' +
     '- `/選單` — 開啟主選單'
   );
 }
